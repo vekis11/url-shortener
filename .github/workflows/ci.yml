@@ -40,6 +40,26 @@ jobs:
         python app.py &
         APP_PID=$!
         sleep 5
-        # Try to access the app
+        # Check homepage
         curl -f http://localhost:4567 || (echo "App failed to start" && exit 1)
+        
+        # Test URL shortening
+        echo "Testing URL shortening..."
+        RESPONSE=$(curl -s -X POST -d "url=https://www.example.com" http://localhost:4567/shorten)
+        SHORT_URL=$(echo "$RESPONSE" | grep -o 'http://localhost:4567/[a-zA-Z0-9]*' | head -1)
+        
+        if [ -n "$SHORT_URL" ]; then
+          echo "✅ Successfully shortened URL!"
+          echo "Shortened URL: $SHORT_URL"
+          echo "Test redirect..."
+          REDIRECT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$SHORT_URL")
+          if [ "$REDIRECT_STATUS" = "302" ] || [ "$REDIRECT_STATUS" = "301" ]; then
+            echo "✅ Redirect works correctly"
+          else
+            echo "❌ Redirect failed" && exit 1
+          fi
+        else
+          echo "❌ URL shortening failed" && exit 1
+        fi
+        
         kill $APP_PID
